@@ -5,6 +5,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from databases import Database
 from pydantic import BaseModel
 from datetime import datetime
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # FastAPI app
 app = FastAPI()
@@ -142,3 +145,46 @@ async def get_registered_events(user_id: int, db: SessionLocal = Depends(get_db)
     ).all()
 
     return registered_events
+
+# Configure MailHog SMTP server settings
+EMAIL_HOST = "localhost"  # MailHog SMTP server hostname
+EMAIL_PORT = 1025         # MailHog SMTP server port
+EMAIL_USE_TLS = False
+
+# Function to send an invitation email
+def send_invitation_email(to_email, event_name):
+    # Create an SMTP server connection
+    server = smtplib.SMTP(EMAIL_HOST, EMAIL_PORT)
+    # server.starttls()
+
+    # Create a MIMEText object for the email body
+    message = MIMEMultipart()
+    message["From"] = "your_email@example.com"  # Your email address
+    message["To"] = to_email
+    message["Subject"] = "Invitation to Event"
+
+    # Email body content
+    body = f"Hi,\n\nYou are invited to the event: {event_name}\n\nRegards,\nAdarsh"
+    message.attach(MIMEText(body, "plain"))
+
+    # Send the email
+    server.sendmail("your_email@example.com", to_email, message.as_string())
+
+    # Close the SMTP server connection
+    server.quit()
+
+class SendEmail(BaseModel):
+    email: str
+    event_name: str
+
+
+# Route to send invitations to a list of users
+@app.post("/send_invitations/")
+async def send_invitations(send_email: SendEmail):
+    print(send_email)
+    email = send_email.email
+    event_name = send_email.event_name
+
+    send_invitation_email(email, event_name)
+    return {"message": f"Email sent succesffuly for {email}"}
+
