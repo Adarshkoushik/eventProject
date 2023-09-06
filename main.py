@@ -155,7 +155,6 @@ EMAIL_USE_TLS = False
 def send_invitation_email(to_email, event_name):
     # Create an SMTP server connection
     server = smtplib.SMTP(EMAIL_HOST, EMAIL_PORT)
-    # server.starttls()
 
     # Create a MIMEText object for the email body
     message = MIMEMultipart()
@@ -174,7 +173,7 @@ def send_invitation_email(to_email, event_name):
     server.quit()
 
 class SendEmail(BaseModel):
-    email: str
+    email: list
     event_name: str
 
 
@@ -184,7 +183,7 @@ async def send_invitations(send_email: SendEmail):
     print(send_email)
     email = send_email.email
     event_name = send_email.event_name
-
-    send_invitation_email(email, event_name)
+    for emails in email:
+        send_invitation_email(emails, event_name)
     return {"message": f"Email sent succesffuly for {email}"}
 
