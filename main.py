@@ -158,7 +158,7 @@ def send_invitation_email(to_email, event_name):
 
     # Create a MIMEText object for the email body
     message = MIMEMultipart()
-    message["From"] = "your_email@example.com"  # Your email address
+    message["From"] = "adarshkoushik@gmail.com"  # Your email address
     message["To"] = to_email
     message["Subject"] = "Invitation to Event"
 
@@ -173,7 +173,7 @@ def send_invitation_email(to_email, event_name):
     server.quit()
 
 class SendEmail(BaseModel):
-    email: list
+    emails: list
     event_name: str
 
 
@@ -181,9 +181,9 @@ class SendEmail(BaseModel):
 @app.post("/send_invitations/")
 async def send_invitations(send_email: SendEmail):
     print(send_email)
-    email = send_email.email
+    emails = send_email.emails
     event_name = send_email.event_name
-    for emails in email:
-        send_invitation_email(emails, event_name)
-    return {"message": f"Email sent succesffuly for {email}"}
+    for email in emails:
+        send_invitation_email(email, event_name)
+    return {"message": f"Email sent succesffuly for {emails}"}
 
