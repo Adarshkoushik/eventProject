@@ -1,51 +1,26 @@
 from fastapi import FastAPI, HTTPException, Depends
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
 from databases import Database
-from pydantic import BaseModel
 from datetime import datetime
-import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from dotenv import load_dotenv
+import smtplib
+import os
+
+from models import Event, User, EventRegistration
+from schema import EventCreate, UserCreate, EventUpdate, EventRegistrationCreate, SendEmail
+
+load_dotenv(".env")
 
 # FastAPI app
 app = FastAPI()
 
 # Database setup
-DATABASE_URL = "postgresql://postgres:adarsh@localhost/mydb"
-engine = create_engine(DATABASE_URL)
+engine = create_engine(os.getenv("DATABASE_URL"))
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-database = Database(DATABASE_URL)
-
-# SQLAlchemy models
-Base = declarative_base()
-
-class Event(Base):
-    __tablename__ = "events"
-
-    event_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    event_title = Column(String, index=True)
-    event_description = Column(String)
-    event_date = Column(DateTime, server_default=text("(now() at time zone 'UTC')"))
-    event_location = Column(String)
-
-class User(Base):
-    __tablename__ = "users"
-
-    user_id = Column(Integer, primary_key=True, index=True)
-    firstname = Column(String, unique=True, index=True)
-    lastname = Column(String, unique=True, index=True)
-    email = Column(String, unique=True, index=True)
-    address = Column(String)
-
-class EventRegistration(Base):
-    __tablename__ = "eventregistrations"
-
-    registration_id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True)
-    event_id = Column(Integer, index=True)
-    registration_date = Column(DateTime, server_default=text("(now() at time zone 'UTC')"))
+database = Database(os.getenv("DATABASE_URL"))
 
 def get_db():
     db = SessionLocal()
@@ -54,32 +29,51 @@ def get_db():
     finally:
         db.close()
 
-# Pydantic model for input validation
-class EventCreate(BaseModel):
-    event_title: str
-    event_description: str
-    event_location: str
-
-class UserCreate(BaseModel):
-    firstname: str
-    lastname: str
-    email: str
-    address: str
-
-class EventRegistrationCreate(BaseModel):
-    user_id: int
-    event_id: int
-    
 
 # Route to create a new event
 @app.post("/events/")
-# async def create_event(event: EventCreate, db: SessionLocal = Depends(database.transaction())):
 async def create_event(event: EventCreate, db: SessionLocal = Depends(get_db)):
-    event_db = Event(**event.dict(),event_date=datetime.utcnow())
+    event_db = Event(**event.dict())
     db.add(event_db)
     db.commit()
     db.refresh(event_db)
     return event
+
+# Route to update an event by ID
+@app.put("/events/{event_id}/")
+async def update_event(event_id: int, event_data: EventUpdate, db: SessionLocal = Depends(get_db)):
+    # Check if the event with the specified ID exists
+    event = db.query(Event).filter(Event.event_id == event_id).first()
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # Update the event data
+    event.event_title = event_data.event_title
+    event.event_description = event_data.event_description
+    event.event_location = event_data.event_location
+    event.event_date = event_data.event_date
+
+    db.commit()
+    db.refresh(event)
+
+    return event
+
+# Route to delete an event by ID
+@app.delete("/events/{event_id}/")
+async def delete_event(event_id: int, db: SessionLocal = Depends(get_db)):
+    # Check if the event with the specified ID exists
+    event = db.query(Event).filter(Event.event_id == event_id).first()
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # Delete the event
+    db.delete(event)
+    db.commit()
+
+    return {"message": "Event deleted successfully"}
+
 
 # Register a new user
 @app.post("/users/")
@@ -146,15 +140,12 @@ async def get_registered_events(user_id: int, db: SessionLocal = Depends(get_db)
 
     return registered_events
 
-# Configure MailHog SMTP server settings
-EMAIL_HOST = "localhost"  # MailHog SMTP server hostname
-EMAIL_PORT = 1025         # MailHog SMTP server port
-EMAIL_USE_TLS = False
-
+#SEND EMAIL INVITATION
 # Function to send an invitation email
 def send_invitation_email(to_email, event_name):
     # Create an SMTP server connection
-    server = smtplib.SMTP(EMAIL_HOST, EMAIL_PORT)
+    #server = smtplib.SMTP(EMAIL_HOST, EMAIL_PORT)
+    server = smtplib.SMTP(os.getenv("EMAIL_HOST"), os.getenv("EMAIL_PORT"))
 
     # Create a MIMEText object for the email body
     message = MIMEMultipart()
@@ -171,11 +162,6 @@ def send_invitation_email(to_email, event_name):
 
     # Close the SMTP server connection
     server.quit()
-
-class SendEmail(BaseModel):
-    emails: list
-    event_name: str
-
 
 # Route to send invitations to a list of users
 @app.post("/send_invitations/")
