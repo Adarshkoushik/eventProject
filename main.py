@@ -10,7 +10,7 @@ import smtplib
 import os
 
 from models import Event, User, EventRegistration
-from schema import EventCreate, UserCreate, EventUpdate, EventRegistrationCreate, SendEmail
+from schema import EventCreate, UserCreate, EventUpdate, EventRegistrationCreate, UserUpdate, SendEmail
 
 load_dotenv(".env")
 
@@ -84,6 +84,41 @@ async def create_user(user: UserCreate, db: SessionLocal = Depends(get_db)):
     db.refresh(user_db)
     return user_db
 
+# Route to update a user by ID
+@app.put("/users/{user_id}/")
+async def update_user(user_id: int, user_data: UserUpdate, db: SessionLocal = Depends(get_db)):
+    # Check if the user with the specified ID exists
+    user = db.query(User).filter(User.user_id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Update the user's information
+    user.firstname = user_data.firstname
+    user.lastname = user_data.lastname
+    user.email = user_data.email
+    user.address = user_data.address
+
+    db.commit()
+    db.refresh(user)
+
+    return user
+
+# Route to delete a user by ID
+@app.delete("/users/{user_id}/")
+async def delete_user(user_id: int, db: SessionLocal = Depends(get_db)):
+    # Check if the user with the specified ID exists
+    user = db.query(User).filter(User.user_id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Delete the user
+    db.delete(user)
+    db.commit()
+
+    return {"message": "User deleted successfully"}
+
 # Register a user for an event
 @app.post("/events/register/")
 async def register_user_for_event(event_registration: EventRegistrationCreate, db: SessionLocal = Depends(get_db)):
@@ -141,10 +176,8 @@ async def get_registered_events(user_id: int, db: SessionLocal = Depends(get_db)
     return registered_events
 
 #SEND EMAIL INVITATION
-# Function to send an invitation email
 def send_invitation_email(to_email, event_name):
     # Create an SMTP server connection
-    #server = smtplib.SMTP(EMAIL_HOST, EMAIL_PORT)
     server = smtplib.SMTP(os.getenv("EMAIL_HOST"), os.getenv("EMAIL_PORT"))
 
     # Create a MIMEText object for the email body

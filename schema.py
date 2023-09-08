@@ -26,6 +26,12 @@ class EventUpdate(BaseModel):
     event_location: str
     event_date: datetime
 
+class UserUpdate(BaseModel):
+    firstname: str
+    lastname: str
+    email: str
+    address: str
+
 class SendEmail(BaseModel):
     emails: list
     event_name: str
