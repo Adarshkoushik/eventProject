@@ -67,11 +67,6 @@ updated_user_data = {
         "address": "Updated Address"
     }
 
-registration_data = {
-        "user_id": 28 ,
-        "event_id": 10
-    }
-
 
 def test_create_event(test_client):
 
@@ -266,16 +261,10 @@ def test_register_user_for_event(test_client):
     assert response.status_code == 200
 
 def test_register_user_for_event_id_not_present(test_client):
-    del registration_data["event_id"]
-
-    # Send a POST request to register the user for the event
-    response = test_client.post("/events/register/", json=registration_data)
-
-    # Check if the response status code is 404
-    assert response.status_code == 422
-
-def test_register_user_for_event_user_not_present(test_client):
-    del registration_data["user_id"]
+    registration_data = {
+        "user_id": 28 ,
+        "event_id": 10
+    }
 
     # Send a POST request to register the user for the event
     response = test_client.post("/events/register/", json=registration_data)
@@ -283,8 +272,22 @@ def test_register_user_for_event_user_not_present(test_client):
     # Check if the response status code is 404
     assert response.status_code == 404
 
-def test_register_user_already_registered(test_client):
+def test_register_user_for_event_user_not_present(test_client):
+    registration_data = {
+        "user_id": 28 ,
+        "event_id": 10
+    }
+    # Send a POST request to register the user for the event
+    response = test_client.post("/events/register/", json=registration_data)
 
+    # Check if the response status code is 404
+    assert response.status_code == 404
+
+def test_register_user_already_registered(test_client):
+    registration_data = {
+        "user_id": 28 ,
+        "event_id": 10
+    }
     # Send a POST request to register the user for the event
     response = test_client.post("/events/register/", json=registration_data)
 
